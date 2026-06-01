@@ -1,5 +1,5 @@
 {
-    "crons": [
+    "_crons": [
         {
             "path": "/api/cron/process-feedback",
             "schedule": "0 4 * * 1"

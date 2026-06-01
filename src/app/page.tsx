@@ -40,7 +40,7 @@ export default async function Home() {
                         </div>
                         <div className="px-8 py-4 text-center bg-slate-50/50">
                             <div className="text-3xl font-bold text-indigo-600 tabular-nums">
-                                {qualifiedLeads.filter(l => (l.stars || 0) >= 4).length}
+                                {qualifiedLeads.filter(l => (l.stars || 0) >= 3).length}
                             </div>
                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Høy Prioritet</div>
                         </div>
@@ -150,7 +150,7 @@ function LeadCard({ lead, index }: { lead: CaseFile; index: number }) {
 
                 <div className="flex flex-col items-end gap-2">
                     <div className="flex gap-1">
-                        {[...Array(5)].map((_, i) => (
+                        {[...Array(3)].map((_, i) => (
                             <div
                                 key={i}
                                 className={`w-3 h-3 rounded-full transition-all duration-500 ${i < (lead.stars || 0) ? 'bg-indigo-600 shadow-[0_0_8px_rgba(99,102,241,0.4)]' : 'bg-slate-100'}`}

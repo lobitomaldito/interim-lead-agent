@@ -312,10 +312,12 @@ export async function GET(request: NextRequest) {
 
                 try {
                     opsCount++; // Counting Gemini call
-                    const sourceName = item.link.includes('dn.no') ? 'Dagens Næringsliv' :
-                        item.link.includes('e24.no') ? 'E24' :
-                            item.link.includes('finansavisen.no') ? 'Finansavisen' :
-                                item.link.includes('ntb.no') || item.link.includes('rss.app') ? 'NTB' : 'News';
+                    const sourceName = item.link.includes('dn.no') ? 'dn_rss' :
+                        item.link.includes('e24.no') ? 'e24' :
+                            item.link.includes('finansavisen.no') ? 'finansavisen' :
+                                item.link.includes('ntb.no') || item.link.includes('rss.app') ? 'ntb' :
+                                    item.link.includes('rett24.no') ? 'rett24_rss' :
+                                        item.link.includes('digi.no') ? 'digi_rss' : 'dn_rss';
 
                     let contentToAnalyze = `${item.title}\n\n${item.description}`;
 
@@ -366,13 +368,6 @@ export async function GET(request: NextRequest) {
                         continue;
                     }
 
-                    // Map source to Airtable Select options
-                    let mappedSource = 'dn_rss';
-                    const s = sourceName as any;
-                    if (s === 'NewsWeb') mappedSource = 'newsweb';
-                    if (s === 'E24') mappedSource = 'e24';
-                    if (s === 'NTB') mappedSource = 'ntb';
-
                     // Ensure trigger matches Airtable Select options
                     const validTriggers = [
                         'LeadershipChange', 'Restructuring', 'MergersAcquisitions', 'StrategicReview',
@@ -385,7 +380,7 @@ export async function GET(request: NextRequest) {
                     await createSeed({
                         company_name: companyName,
                         org_number: triggerResult.company_mentioned.org_number || '',
-                        source_type: mappedSource,
+                        source_type: sourceName,
                         source_url: item.link,
                         trigger_detected: finalTrigger,
                         excerpt: (triggerResult.triggers_found[0]?.excerpt || item.description || item.title).slice(0, 500),

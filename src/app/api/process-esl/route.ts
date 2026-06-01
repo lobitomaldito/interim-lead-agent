@@ -11,7 +11,7 @@ import { CachedBrregLookup, getBrregConfirmation } from '@/lib/bronnysund';
 import { batchProcessSeeds, generateWhyNowBatch, generateSummaryBatch, generateStructuredAnalysisBatch } from '@/lib/gemini';
 import { searchCorroboration } from '@/lib/search';
 import { scrapeUrl, resetFirecrawlBudget, getFirecrawlStats } from '@/lib/firecrawl';
-import { getScoringWeights } from '@/config/scoring-config';
+import { getScoringWeights, computeStartScores } from '@/config/scoring-config';
 import { logger } from '@/lib/logger';
 import { groupSeedsByCompany } from '@/lib/corroboration';
 
@@ -87,7 +87,9 @@ export async function POST(request: NextRequest) {
         const caseFilesData = await Promise.all(seedGroups.map(async (group) => {
             const seed = group.primary_seed;
             const sourceType = seed.source_type || 'default';
-            const scores = SCORING_WEIGHTS[sourceType] || SCORING_WEIGHTS.default;
+            const sourceWeights = SCORING_WEIGHTS[sourceType] || SCORING_WEIGHTS.default;
+            const trigger = seed.trigger_detected || 'LeadershipChange';
+            const startScores = computeStartScores(sourceWeights, trigger, sourceType);
 
             // Try org number lookup first, fall back to name search
             let company = group.canonical_org_number ? (brregData.get(group.canonical_org_number.replace(/\s/g, '')) || null) : null;
@@ -125,10 +127,10 @@ export async function POST(request: NextRequest) {
                     seed: effectiveSeed,
                     company_name: group.canonical_name || company?.navn || 'Unknown',
                     org_number: group.canonical_org_number || company?.organisasjonsnummer || '',
-                    E: Math.min(1.0, scores.E0 + group.corroboration_boost),
-                    W: Math.min(1.0, scores.W0 + group.corroboration_boost),
+                    E: Math.min(1.0, startScores.E + group.corroboration_boost),
+                    W: Math.min(1.0, startScores.W + group.corroboration_boost),
                     V: verification.V,
-                    R: scores.R0,
+                    R: startScores.R,
                     brreg_data: company,
                     verification: {
                         ...verification,
@@ -146,7 +148,6 @@ export async function POST(request: NextRequest) {
             const resolvedOrgNumber = group.canonical_org_number || company?.organisasjonsnummer || '';
 
             // Anti-repetition: Addendum §4 — dedup key is (company, trigger, role)
-            const trigger = seed.trigger_detected || 'LeadershipChange';
             const role = mapTriggerToRole(trigger);
             const isDuplicate = resolvedOrgNumber
                 ? await checkDuplicate(resolvedOrgNumber, trigger, role)
@@ -156,9 +157,9 @@ export async function POST(request: NextRequest) {
                 logger.audit(`Duplicate detected: ${group.canonical_name} (${trigger}, ${role})`, { mode, component: 'process-esl' });
             }
 
-            // Apply corroboration boost for multi-source leads
-            const E_initial = Math.min(1.0, scores.E0 + group.corroboration_boost);
-            const W_initial = Math.min(1.0, scores.W0 + group.corroboration_boost);
+            // Apply trigger modifier + corroboration boost for multi-source leads
+            const E_initial = Math.min(1.0, startScores.E + group.corroboration_boost);
+            const W_initial = Math.min(1.0, startScores.W + group.corroboration_boost);
 
             // For multi-source groups, use merged content so Gemini sees all context
             const effectiveSeed = { ...seed };
@@ -190,7 +191,7 @@ export async function POST(request: NextRequest) {
                 E: E_initial,
                 W: W_initial,
                 V: verification.V,
-                R: scores.R0,
+                R: startScores.R,
                 brreg_data: company,
                 verification,
                 is_duplicate: isDuplicate,

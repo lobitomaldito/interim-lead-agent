@@ -5,7 +5,7 @@ const app = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY });
 // ============================================
 // CREDIT BUDGET - prevents runaway scraping
 // ============================================
-const FIRECRAWL_BUDGET_PER_RUN = 50; // Max credits per pipeline run
+const FIRECRAWL_BUDGET_PER_RUN = 100; // Max credits per pipeline run
 let creditsUsed = 0;
 let budgetResetTime = 0;
 
